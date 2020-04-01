@@ -11,7 +11,7 @@ int main(void)
 	FILE_DATA fileData;
     unsigned int initialWindowWidth=420; // blaze it
     unsigned int initialWindowHeight=640;
-    SetupWindow(windowData,initialWindowWidth,initialWindowHeight,L"YGO LOTD LE Character Data Editor v0.1");
+    SetupWindow(windowData,initialWindowWidth,initialWindowHeight,L"YGO LOTD LE Character Data Editor v0.2");
 
     SetupGui(windowData,initialWindowWidth,initialWindowHeight);
 

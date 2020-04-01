@@ -4,7 +4,8 @@
 ## Features
  - Opens any chardata_X.bin file (all languages should work, untested)
  - Displays all data in a humanly readable fashion
- - Edit Series ID, Challenge Deck ID, Challenge Arena ID, Playable Flag and Character Name
+ - Edit Series ID, Challenge Deck ID, Challenge Arena ID and Playable Flag; Character ID and name
+ - Add additional character slots, create your own characters
  - Fixes all pointers when saving
  
 ## Building
@@ -18,4 +19,4 @@
  [Notes](https://github.com/MoonlitDeath/Legacy-of-the-Duelist-notes/wiki) and [guide](https://github.com/MoonlitDeath/Link-Evolution-Editing-Guide/wiki) by MoonlitDeath
 
 ## Gallery
- ![Screenshot](https://i.imgur.com/bef11jf.png)
+ ![Screenshot](https://i.imgur.com/k0ITRKr.png)

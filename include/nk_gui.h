@@ -11,3 +11,5 @@ void HandleGui(FILE_DATA &fileData);
 void RenderGui();
 void CleanupGui();
 void UpdateWindowSize(unsigned int width, unsigned int height);
+void UpdateTextEdits(int idx, FILE_DATA &fileData);
+void UpdateStrings(int idx, FILE_DATA &fileData);

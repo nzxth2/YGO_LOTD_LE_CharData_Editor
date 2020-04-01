@@ -27,8 +27,9 @@ int selectedChar;
 std::vector<std::string> seriesStrings;
 // informative string displayed in the log at the bottom
 std::string infoString;
-// string edited by the name edit textbox
-std::string nameEditString;
+// strings edited by the textboxes
+std::string editStringCharNameID;
+std::string editStringCharName;
 
 void SetupGui(WINDOW_DATA &windowData,unsigned int initialWindowWidth, unsigned int initialWindowHeight){
     font = nk_gdifont_create("Segoe UI", 18);
@@ -87,11 +88,10 @@ int HandleEvent(const EVENT_DATA &eventData){
 }
 
 void HandleGui(FILE_DATA &fileData){
-    const int maxNameSize=52;
     if (nk_begin(ctx, "Demo", nk_rect(0, 0, windowWidth, windowHeight),
         0))
     {
-        nk_layout_row_static(ctx, 0, 100, 1);
+        nk_layout_row_static(ctx, 0, 100, 2);
         if (nk_menu_begin_label(ctx,"FILE",NK_TEXT_LEFT,nk_vec2(100, 100))){
             nk_layout_row_dynamic(ctx, 0, 1);
             if(nk_menu_item_label(ctx, "OPEN", NK_TEXT_LEFT)){
@@ -101,8 +101,7 @@ void HandleGui(FILE_DATA &fileData){
                     if (success){
                         fileOpen=true;
                         selectedChar=0;
-                        nameEditString=fileData.string2[selectedChar];
-                        nameEditString.resize(maxNameSize);
+                        UpdateTextEdits(selectedChar,fileData);
                         infoString=std::to_string(fileData.characterCount)+" characters loaded from file "+filename;
                     }
                     else{
@@ -113,8 +112,7 @@ void HandleGui(FILE_DATA &fileData){
             if(nk_menu_item_label(ctx, "SAVE", NK_TEXT_LEFT) && fileOpen){
                 std::string filename=SaveFilename("YGO LOTD LE Character Data Files (*.bin)\0*.*\0");
                 if (!filename.empty()){
-                    fileData.string2[selectedChar]=nameEditString;
-                    fileData.string2[selectedChar].resize(strlen(&nameEditString[0]));
+                    UpdateStrings(selectedChar,fileData);
                     bool success=SaveFile(filename,fileData);
                     if (success){
                         infoString="Successfully saved data to "+filename;
@@ -126,17 +124,36 @@ void HandleGui(FILE_DATA &fileData){
             }
             nk_menu_end(ctx);
         }
+        if (nk_menu_begin_label(ctx,"EDIT",NK_TEXT_LEFT,nk_vec2(100, 100))){
+            nk_layout_row_dynamic(ctx, 0, 1);
+            if(nk_menu_item_label(ctx, "Add Char Slot", NK_TEXT_LEFT) && fileOpen){
+                UpdateStrings(selectedChar,fileData);
+                fileData.characterCount++;
+                selectedChar=fileData.characterCount-1;
+                fileData.field1.push_back(fileData.field1[selectedChar-1]+1);
+                fileData.field2.push_back(0xFFFFFFFF);
+                fileData.field3.push_back(1);
+                fileData.field4.push_back(0);
+                fileData.field5.push_back(0xFFFFFFFF);
+                fileData.field6.push_back(0);
+                fileData.field7.push_back(1);
+                fileData.field8.push_back(0);
+                fileData.string1.push_back("Char"+std::to_string(fileData.field1[selectedChar]));
+                fileData.string2.push_back("Char "+std::to_string(fileData.field1[selectedChar]));
+                fileData.string3.push_back(u"");
+                UpdateTextEdits(selectedChar,fileData);
+            }
+            nk_menu_end(ctx);
+        }
         
         float ratio[]={0.2,0.6,0.2};
         nk_layout_row(ctx, NK_DYNAMIC, 0, 3, ratio);
         
         if (nk_button_label(ctx, "Prev") && fileOpen){
             if (selectedChar>0){
-                fileData.string2[selectedChar]=nameEditString;
-                fileData.string2[selectedChar].resize(strlen(&nameEditString[0]));
+                UpdateStrings(selectedChar,fileData);
                 selectedChar--;
-                nameEditString=fileData.string2[selectedChar];
-                nameEditString.resize(maxNameSize);
+                UpdateTextEdits(selectedChar,fileData);
             }
         }
 
@@ -154,11 +171,9 @@ void HandleGui(FILE_DATA &fileData){
                     int selected=nk_false;
                     if (nk_selectable_label(ctx,(std::to_string(fileData.field1[i])+" - "+fileData.string1[i]).c_str(),NK_TEXT_LEFT,&selected)){
                         if (selectedChar!=i){
-                            fileData.string2[selectedChar]=nameEditString;
-                            fileData.string2[selectedChar].resize(strlen(&nameEditString[0]));
+                            UpdateStrings(selectedChar,fileData);
                             selectedChar=i;
-                            nameEditString=fileData.string2[selectedChar];
-                            nameEditString.resize(maxNameSize);
+                            UpdateTextEdits(selectedChar,fileData);
                         }
                         nk_combo_close(ctx);
                     }
@@ -169,18 +184,16 @@ void HandleGui(FILE_DATA &fileData){
 
         if (nk_button_label(ctx, "Next") && fileOpen){
             if (selectedChar+1<fileData.characterCount){
-                fileData.string2[selectedChar]=nameEditString;
-                fileData.string2[selectedChar].resize(strlen(&nameEditString[0]));
+                UpdateStrings(selectedChar,fileData);
                 selectedChar++;
-                nameEditString=fileData.string2[selectedChar];
-                nameEditString.resize(maxNameSize);
+                UpdateTextEdits(selectedChar,fileData);
             }
         }
         nk_layout_row_dynamic(ctx, 345, 3);
 
         if(nk_group_begin_titled(ctx, "group_fields", "Fields", NK_WINDOW_TITLE|NK_WINDOW_BORDER)){
             nk_layout_row_dynamic(ctx, 0, 1);
-            nk_label(ctx,"Character Number",NK_TEXT_LEFT);
+            nk_label(ctx,"Character ID",NK_TEXT_LEFT);
             nk_label(ctx,"Series ID",NK_TEXT_LEFT);
             nk_label(ctx,"Challenge Deck ID",NK_TEXT_LEFT);
             nk_label(ctx,"Playable Flag",NK_TEXT_LEFT);
@@ -232,12 +245,15 @@ void HandleGui(FILE_DATA &fileData){
                 
                 nk_property_int(ctx,"#",-1,reinterpret_cast<int*>(&(fileData.field3[selectedChar])),INT_MAX,1,1.0);
 
-                int playableChecked=fileData.field4[selectedChar];
-                if (nk_checkbox_label(ctx,"Playable?",&playableChecked)){
-                    fileData.field4[selectedChar]=playableChecked;
+                int checkedPlayable=fileData.field4[selectedChar];
+                if (nk_checkbox_label(ctx,"Playable?",&checkedPlayable)){
+                    fileData.field4[selectedChar]=checkedPlayable;
                 }
                 nk_label(ctx,std::to_string((int)(fileData.field5[selectedChar])).c_str(),NK_TEXT_LEFT);
-                nk_label(ctx,std::to_string((int)(fileData.field6[selectedChar])).c_str(),NK_TEXT_LEFT);
+                int checkedField6=fileData.field6[selectedChar];
+                if (nk_checkbox_label(ctx,"???",&checkedField6)){
+                    fileData.field6[selectedChar]=checkedField6;
+                }
                 nk_property_int(ctx,"#",-1,reinterpret_cast<int*>(&(fileData.field7[selectedChar])),INT_MAX,1,1.0);
                 nk_label(ctx,std::to_string((int)(fileData.field8[selectedChar])).c_str(),NK_TEXT_LEFT);
             }
@@ -250,9 +266,9 @@ void HandleGui(FILE_DATA &fileData){
                 float ratio[]={0.2,0.8};
                 nk_layout_row(ctx, NK_DYNAMIC, 0, 2, ratio);
                 nk_label(ctx,"ID String: ",NK_TEXT_LEFT);
-                nk_label(ctx,(fileData.string1[selectedChar]).c_str(),NK_TEXT_LEFT);
+                nk_edit_string_zero_terminated(ctx,NK_EDIT_FIELD|NK_EDIT_SELECTABLE ,const_cast<char*>(editStringCharNameID.c_str()),52,0);
                 nk_label(ctx,"Name: ",NK_TEXT_LEFT);
-                nk_edit_string_zero_terminated(ctx,NK_EDIT_FIELD|NK_EDIT_SELECTABLE ,const_cast<char*>(nameEditString.c_str()),maxNameSize,0);
+                nk_edit_string_zero_terminated(ctx,NK_EDIT_FIELD|NK_EDIT_SELECTABLE ,const_cast<char*>(editStringCharName.c_str()),52,0);
                 std::string u8_conv = std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t>{}.to_bytes(fileData.string3[selectedChar]);
                 nk_label(ctx,"Bio (unused): ",NK_TEXT_LEFT);
                 nk_label(ctx,u8_conv.c_str(),NK_TEXT_LEFT);
@@ -264,6 +280,21 @@ void HandleGui(FILE_DATA &fileData){
     }
     nk_end(ctx);
 }
+
+void UpdateStrings(int idx, FILE_DATA &fileData){
+    fileData.string1[idx]=editStringCharNameID;
+    fileData.string1[idx].resize(strlen(&editStringCharNameID[0]));
+    fileData.string2[idx]=editStringCharName;
+    fileData.string2[idx].resize(strlen(&editStringCharName[0]));
+}
+
+void UpdateTextEdits(int idx, FILE_DATA &fileData){
+    editStringCharNameID=fileData.string1[idx];
+    editStringCharNameID.resize(52);
+    editStringCharName=fileData.string2[idx];
+    editStringCharName.resize(52);
+}
+
 
 void RenderGui(){
     nk_gdi_render(nk_rgb(30,30,30));
